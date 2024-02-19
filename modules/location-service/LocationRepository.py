@@ -1,4 +1,4 @@
-class MessageRepository:
+class LocationRepository:
     def __init__(self, engine):
         self.engine = engine
 

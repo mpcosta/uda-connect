@@ -4,7 +4,7 @@ import os
 
 from kafka import KafkaConsumer
 from sqlalchemy import create_engine
-from message_repository import LocationRepository
+from LocationRepository import LocationRepository
 
 # Get initial configuration fields from environment variables
 DB_USERNAME = os.environ["DB_USERNAME"]
@@ -19,7 +19,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("udaconnect-location-service")
 
 # Set up Kafka Consumer
-consumer = KafkaConsumer(TOPIC_NAME, bootstrap_servers=[KAFKA_SERVER])
+consumer = KafkaConsumer(KAFKA_TOPIC_NAME, bootstrap_servers=[KAFKA_SERVER])
 
 # Set up MessageRepository
 engine = create_engine(f"postgresql://{DB_USERNAME}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}")

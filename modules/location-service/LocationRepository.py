@@ -6,7 +6,7 @@ class LocationRepository:
         with self.engine.connect() as connection:
             connection.execute(
                 f"""
-                INSERT INTO location (person_id, latitude, longitude)
-                VALUES ({message['person_id']}, {message['latitude']}, {message['longitude']})
+                INSERT INTO location (person_id, coordinate)
+                VALUES ({message['person_id']}, POINT({message['longitude']} {message['latitude']}))
                 """
             )

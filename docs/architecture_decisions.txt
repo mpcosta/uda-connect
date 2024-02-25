@@ -1,0 +1,23 @@
+UdaConnect Microservice Architecture Diagram
+=============================================
+
+Overview: The new UdaConnect microservice architecture is designed to be a scalable and resilient system that can handle a large number of users and data. The architecture is based on the microservice pattern, which is a design pattern that structures an application as a collection of loosely coupled services.
+
+
+Message Passing Techniques
+==========================
+
+The message passing techniques picked are:
+
+REST: This will still be used for our Frontend clients due to its simplicity and ease of use while being the industry standard for web services. It will also integrate itself with various routes due to microservice architecture.
+
+gRPC: This will be used for communication originating from mobile devices due to its speed and efficiency. Given the requirements of ingesting large volumes of location data, gRPC is the best choice for this use case.
+
+Kafka: This will be used for asynchronous communication between microservices (Location Ingestion Service and Location Service). Kafka improves performance, reliability and enables decoupling of services. It also provides a way to buffer messages between services, which can help to handle spikes in traffic.
+
+
+
+
+
+
+

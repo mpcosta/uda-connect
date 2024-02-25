@@ -1,0 +1,31 @@
+#### Sending a sample gRPC location data request to the Location Ingester Service
+
+The gRPC proto used is location.proto and it has the following structure:
+message LocationMessage {
+  int32 person_id = 1;
+  string latitude = 2;
+  string longitude = 3;
+}
+
+The sample_writer.py script sends a sample gRPC location data request to the Location Ingester Service.
+The script uses the location.proto file to create a LocationMessage object and sends it to the Location Ingester Service using the gRPC protocol.
+
+In order to do this, start a shell session in the `udaconnect-location-ingester` pod and run the following command to send a sample gRPC location data request to the Location Ingester Service:
+
+```bash
+# Retrieve the pod name for the udaconnect-location-ingester service
+kubectl get pods
+
+# Start a shell session in the udaconnect-location-ingester pod
+kubectl exec -it <POD_NAME> sh
+
+# Run the following command to send a sample gRPC location data request to the Location Ingester Service
+python sample_writer.py
+```
+
+Once this is done, you should be able to see the location data being ingested in the `udaconnect-location-service` pod logs.
+
+```bash
+kubectl logs -f <LOCATION_INGESTER_POD_NAME>
+kubectl logs -f <LOCATION_SERVICE_POD_NAME>
+```

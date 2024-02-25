@@ -8,7 +8,10 @@ You work for a company that is building a app that uses location data from mobil
 
 Management loved the POC so now that there is buy-in, we want to enhance this application. You have been tasked to enhance the POC application into a [MVP](https://en.wikipedia.org/wiki/Minimum_viable_product) to handle the large volume of location data that will be ingested.
 
-To do so, ***you will refactor this application into a microservice architecture using message passing techniques that you have learned in this course***. It’s easy to get lost in the countless optimizations and changes that can be made: your priority should be to approach the task as an architect and refactor the application into microservices. File organization, code linting -- these are important but don’t affect the core functionality and can possibly be tagged as TODO’s for now!
+To ***refactor this application into a microservice architecture using message passing techniques that you have learned in this course***.
+
+### UdaConnect Microservice Architecture
+- ![Architecture](docs/architecture_design.png)
 
 ### Technologies
 * [Flask](https://flask.palletsprojects.com/en/1.1.x/) - API webserver
@@ -18,6 +21,7 @@ To do so, ***you will refactor this application into a microservice architecture
 * [Vagrant](https://www.vagrantup.com/) - Tool for managing virtual deployed environments
 * [VirtualBox](https://www.virtualbox.org/) - Hypervisor allowing you to run multiple operating systems
 * [K3s](https://k3s.io/) - Lightweight distribution of K8s to easily develop against a local cluster
+* [helm](https://helm.sh/) - Package manager for Kubernetes
 
 ## Running the app
 The project has been set up such that you should be able to have the project up and running with Kubernetes.
@@ -75,27 +79,114 @@ Type `exit` to exit the virtual OS and you will find yourself back in your compu
 
 Afterwards, you can test that `kubectl` works by running a command like `kubectl describe services`. It should not return any errors.
 
-### Steps
-1. `kubectl apply -f deployment/db-configmap.yaml` - Set up environment variables for the pods
+### App Setup Instructions
+#### Apply the Kubernetes Configurations
+1. `kubectl apply -f deployment/db-configmap.yaml` - Set up database environment variables for the pods
+2. `kubectl apply -f deployment/kafka-configmap.yaml` - Set up KAFKA environment variables for the pods
 2. `kubectl apply -f deployment/db-secret.yaml` - Set up secrets for the pods
 3. `kubectl apply -f deployment/postgres.yaml` - Set up a Postgres database running PostGIS
-4. `kubectl apply -f deployment/udaconnect-api.yaml` - Set up the service and deployment for the API
+4. `kubectl apply -f deployment/udaconnect-connections-api.yaml` - Set up the service and deployment for the (microservice) Connections API
+5. `kubectl apply -f deployment/udaconnect-persons-api.yaml` - Set up the service and deployment for the (microservice) Persons API
+4. `kubectl apply -f deployment/udaconnect-api.yaml` - Set up the service and deployment for the legacy (monolith) API
 5. `kubectl apply -f deployment/udaconnect-app.yaml` - Set up the service and deployment for the web app
-6. `sh scripts/run_db_command.sh <POD_NAME>` - Seed your database against the `postgres` pod. (`kubectl get pods` will give you the `POD_NAME`)
+
+#### Seed the Database
+Note: The first time you run this project, you will need to seed the database with dummy data. Use the command `sh scripts/run_db_command.sh <POD_NAME>` against the `postgres` pod. (`kubectl get pods` will give you the `POD_NAME`). Subsequent runs of `kubectl apply` for making changes to deployments or services shouldn't require you to seed the database again!
+
+`sh scripts/run_db_command.sh <POD_NAME>` - Seed your database against the `postgres` pod. (`kubectl get pods` will give you the `POD_NAME`)
+
+#### Setting up KAFKA Message Queue
+The following should be done from within your VM `vagrant ssh`
+
+1. Setup helm on your VM
+
+```bash
+# Install Helm
+curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3
+
+chmod +x get_helm.sh
+./get_helm.sh
+
+# Verify installation
+helm version
+```
+
+2. Setting Up Kafka using Helm
+```bash
+# Add Bitnami Helm Charts repository
+helm repo add bitnami https://charts.bitnami.com/bitnami
+helm repo update
+
+# Export the kubeconfig file
+export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
+
+# Permissions to access the kubeconfig file 
+sudo chmod 644 /etc/rancher/k3s/k3s.yaml
+
+# Creating the Zookeeper and Kafka services with minimal authentication for MVP
+helm install udaconnect-kafka bitnami/kafka --set zookeeper.enabled=true --set kraft.enabled=false --set broker.replicaCount=1 --set controller.replicaCount=0 --set listeners.client.protocol=PLAINTEXT --set listeners.controller.protocol=PLAINTEXT
+
+# Verify installation and make sure both broker and zookeeper pods are running
+kubecetl get pods
+
+# Access the Kafka Broker Pod
+kubectl exec -it udaconnect-kafka-broker-0 -- /bin/bash
+
+# Create Kafka Topic
+kafka-topics.sh --bootstrap-server localhost:9092 --create --topic location-ingestion-data --partitions 1 --replication-factor 1
+
+# Reset permissions to the kubeconfig file
+sudo chmod 600 /etc/rancher/k3s/k3s.yaml
+```
+
+#### Apply Kubernetes Configurations for Location Services that use Kafka
+1. `kubectl apply -f deployment/udaconnect-location-service.yaml` - Set up the service and deployment for the (microservice) Location Service
+2. `kubectl apply -f deployment/udaconnect-location-ingester-service.yaml` - Set up the service and deployment for the (microservice) Location Ingester Service
 
 Manually applying each of the individual `yaml` files is cumbersome but going through each step provides some context on the content of the starter project. In practice, we would have reduced the number of steps by running the command against a directory to apply of the contents: `kubectl apply -f deployment/`.
 
-Note: The first time you run this project, you will need to seed the database with dummy data. Use the command `sh scripts/run_db_command.sh <POD_NAME>` against the `postgres` pod. (`kubectl get pods` will give you the `POD_NAME`). Subsequent runs of `kubectl apply` for making changes to deployments or services shouldn't require you to seed the database again!
 
-### Verifying it Works
-Once the project is up and running, you should be able to see 3 deployments and 3 services in Kubernetes:
-`kubectl get pods` and `kubectl get services` - should both return `udaconnect-app`, `udaconnect-api`, and `postgres`
+### Running the App
+#### Verify K8 Pods and Services
+Once the project is fully setup you should be able to see exactly 9 pods running and 9+ services running. You can verify this by running the following commands:
+```bash
+$ kubectl get pods
+$ kubectl get services
+```
+Below are some screenshots of the pods and services running in the K8s cluster for reference:
 
+Running Pods:
+- ![Pods](docs/pods_screenshot.png)
+
+Running Services:
+- ![Services](docs/services_screenshot.png)
 
 These pages should also load on your web browser:
-* `http://localhost:30001/` - OpenAPI Documentation
-* `http://localhost:30001/api/` - Base path for API
 * `http://localhost:30000/` - Frontend ReactJS Application
+* `http://localhost:30001/` - OpenAPI Documentation for Legacy API
+* `http://localhost:30002/` - OpenAPI Documentation for Connections API
+* `http://localhost:30003/` - OpenAPI Documentation for Persons API
+
+#### Sending a sample gRPC location data request to the Location Ingester Service
+Start a shell session in the `udaconnect-location-ingester` pod and run the following command to send a sample gRPC location data request to the Location Ingester Service:
+```bash
+# Retrieve the pod name for the udaconnect-location-ingester service
+kubectl get pods
+
+# Start a shell session in the udaconnect-location-ingester pod
+kubectl exec -it <POD_NAME> sh
+
+# Run the following command to send a sample gRPC location data request to the Location Ingester Service
+python sample_writer.py
+```
+Once this is done, you should be able to see the location data being ingested in the `udaconnect-location-service` pod logs.
+```bash
+kubectl logs -f <LOCATION_INGESTER_POD_NAME>
+kubectl logs -f <LOCATION_SERVICE_POD_NAME>
+```
+Below are some screenshots of the location data being ingested in the `udaconnect-location-service` pod logs for reference:
+Logs Screenshot:
+- ![RunningLogs](docs/location-service-logs-sample.png)
 
 #### Deployment Note
 You may notice the odd port numbers being served to `localhost`. [By default, Kubernetes services are only exposed to one another in an internal network](https://kubernetes.io/docs/concepts/services-networking/service/). This means that `udaconnect-app` and `udaconnect-api` can talk to one another. For us to connect to the cluster as an "outsider", we need to a way to expose these services to `localhost`.
@@ -140,12 +231,6 @@ This will enable you to connect to the database at `localhost`. You should then 
 To manually connect to the database, you will need software compatible with PostgreSQL.
 * CLI users will find [psql](http://postgresguide.com/utilities/psql.html) to be the industry standard.
 * GUI users will find [pgAdmin](https://www.pgadmin.org/) to be a popular open-source solution.
-
-## Architecture Diagrams
-Your architecture diagram should focus on the services and how they talk to one another. For our project, we want the diagram in a `.png` format. Some popular free software and tools to create architecture diagrams:
-1. [Lucidchart](https://www.lucidchart.com/pages/)
-2. [Google Docs](docs.google.com) Drawings (In a Google Doc, _Insert_ - _Drawing_ - _+ New_)
-3. [Diagrams.net](https://app.diagrams.net/)
 
 ## Tips
 * We can access a running Docker container using `kubectl exec -it <pod_id> sh`. From there, we can `curl` an endpoint to debug network issues.

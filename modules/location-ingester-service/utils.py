@@ -10,7 +10,7 @@ KAFKA_SERVER = os.environ['KAFKA_SERVER']
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("udaconnect-location-ingester-service")
 
-producer = KafkaProducer(bootstrap_servers=KAFKA_SERVER)
+producer = KafkaProducer(bootstrap_servers=[KAFKA_SERVER])
 
 def send_location_message(location_message):
     logger.info("Received Location Data for publishing to Kafka: %s", location_message)

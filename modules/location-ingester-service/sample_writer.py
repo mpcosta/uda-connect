@@ -14,7 +14,7 @@ stub = location_pb2_grpc.LocationServiceStub(channel)
 print("Sending sample location payload to gRPC server")
 
 # Generate random person_id, latitude, and longitude
-person_id = random.randint(1, 1000)
+person_id = random.randint(5, 6)
 latitude = str(random.uniform(-90, 90))
 longitude = str(random.uniform(-180, 180))
 
